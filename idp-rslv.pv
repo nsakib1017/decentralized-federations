@@ -1,0 +1,202 @@
+set ignoreTypes = false.
+(* set traceDisplay = long. *)
+
+free c: channel.
+
+type host.
+type nonce.
+type pkey.
+type skey.
+type idpQuery.
+type cid.
+
+
+(* Public key encryption *)
+fun pk(skey): pkey.
+fun encrypt(bitstring, pkey): bitstring.
+reduc forall x: bitstring, y: skey; decrypt(encrypt(x,pk(y)),y) = x.
+
+
+fun reqCid(cid): bitstring.
+fun reqIdpQ(idpQuery): bitstring.
+
+
+(* Secrecy assumptions *)
+not attacker(new skU).
+not attacker(new skA).
+not attacker(new skSp1).
+not attacker(new skDApp).
+not attacker(new skCC).
+
+
+(* Honest host names *)
+free U, Sp1, Idp1, DApp, CC: host.
+free CID: bitstring [private].
+free wayfPage: bitstring [private].
+
+(* Secret declaration *)
+free servAccReq : bitstring [private].
+free IdpQData: idpQuery [private].
+
+free IdpList: bitstring [private].
+
+free IdpAlive: host [private].
+
+
+(* Secrecy query *)
+query attacker(IdpAlive);
+      attacker(CID).
+
+
+
+(* A process *)
+let processU(skU: skey, pkSp1: pkey) = 
+
+    in (c, 
+            (
+                xSp1: host, 
+                xIdp1: host
+            )
+        );
+	if (xSp1 = Sp1) && (xIdp1 = Idp1) then
+	let pkU = pk(skU) in
+
+    new N1: nonce;
+
+    out (c,  
+            (
+                encrypt((N1, servAccReq), pkSp1)
+            )
+        );
+
+    
+    in (c, (encM2: bitstring));
+
+    let (=N1, =wayfPage) = decrypt(encM2, skU) in
+
+    new N2: nonce;
+
+
+    out (c,  
+        (
+                encrypt((N2, xIdp1), pkSp1)
+        )
+    );
+    0.
+
+
+
+(* U2 process *)
+let processSp1(skSp1: skey, pkU: pkey, pkDApp: pkey) = 
+
+    in (c, 
+            (
+                xU: host, 
+                xDApp: host
+            )
+        );
+	if (xA = U) && (xDApp = DApp) then
+	let pkSp1 = pk(skSp1) in
+
+    in (c, (encM1: bitstring));
+    let (xN1: nonce, =servAccReq) = decrypt(encM1, skSp1) in
+
+    out (c, (encrypt((xN1, wayfPage), pkU)));
+
+    in (c, (encM3: bitstring));
+    let (xN2: nonce, =Idp1) = decrypt(encM3, skSp1) in
+
+    new N3: nonce;
+    out (c, (encrypt((N3, Idp1), pkDApp)));
+
+    0.
+
+
+
+(* DApp process *)
+let processDApp(skDApp: skey, pkSp1: pkey, pkCC: pkey, pkA: pkey) = 
+    in (c, 
+            (
+                xSp1: host, 
+                xCC: host
+            )
+        );
+	if (xSp1 = Sp1) && (xCC = CC) then
+	let pkDApp = pk(skDApp) in
+
+    in (c, (encM4: bitstring));
+    let (xN3: nonce, =xIdp1) = decrypt(encM4, skDApp) in
+
+
+    new N4: nonce;
+    new cidReqD: cidReq;
+    out (c, (encrypt((N4, encrypt((reqCid(cidReqD)), pkA)), pkCC)));
+
+    in (c, (encM6: bitstring));
+    let (=N4, =CID) = decrypt(encM6, skDApp) in
+
+
+    new N5: nonce;
+    out (c, (encrypt((N5, encrypt((reqIdpQ(IdpQData)), pkA)), pkCC)));
+
+    in (c, (encM8: bitstring));
+    let (=N5, =IdpList) = decrypt(encM8, skDApp) in
+
+    out (c, (encrypt((xN3, IdpAlive), pkSp1)));
+
+    0.
+
+
+
+(* S process *)
+let processCC(skCC: skey, pkDApp: pkey) = 
+    in (c, 
+            (
+                xDApp: host
+            )
+        );
+	if (xDApp = DApp) then
+	let pkCC = pk(skCC) in
+
+    in (c, (encM5: bitstring));
+    let (xN4: nonce, encReqForA: bitstring) = decrypt(encM5, skCC) in
+    
+    out (c, (encrypt(xN4, CID), pkDApp));
+
+    in (c, (encM7: bitstring));
+    let (xN5: nonce, encReqForAQuery: bitstring) = decrypt(encM7, skCC) in
+    out (c, ((encrypt(xN5, IdpList), pkDApp)));
+
+    0.
+
+
+(* Main process setup *)
+process 
+    new skA: skey;
+	let pkA = pk(skA) in
+        out(c, pkA);
+    new skU: skey;
+	let pkU = pk(skU) in
+        out(c, pkA);
+    new skSp1: skey;
+	let pkSp1 = pk(skSp1) in
+        out(c, pkIdp1);
+    new skDApp: skey;
+	let pkDApp = pk(skDApp) in
+	    out(c, pkDApp);
+    new skCC: skey;
+	let pkCC = pk(skCC) in
+	    out(c, pkCC);
+	(
+          (* Launch an unbounded number of sessions of the data owner *)
+          (!processA(skU, pkSp1)) | 
+          
+          (* Launch an unbounded number of sessions of the data requester *)
+          (!processIdp1(skSp1, pkU, pkDApp)) |
+          
+          (* Launch an unbounded number of sessions of the IPFS node *)
+          (!processDApp(skDApp, pkSp1, pkCC, pkA)) |
+          
+          (* Launch an unbounded number of sessions of the DApp node without IPFS *)
+	      (!processCC(skCC, pkDApp))
+    )

@@ -15,7 +15,7 @@ fun pk(skey): pkey.
 fun encrypt(bitstring, pkey): bitstring.
 reduc forall x: bitstring, y: skey; decrypt(encrypt(x,pk(y)),y) = x.
 
-fun req(type, bitstring): bitstring.
+fun req(userReg): bitstring.
 
 
 (* Secrecy assumptions *)
@@ -51,8 +51,6 @@ let processA(skA: skey, pkIdp1: pkey) =
 	if (xIdp1 = Idp1) then
 	let pkA = pk(skA) in
 
-    (* M1 *)
-    if xIdp1 = Idp1 then 
     new N1: nonce;
     out (c,  
             (
@@ -136,7 +134,7 @@ let processDApp(pkIdp1: pkey, skDApp: skey, pkCC: pkey, pkA: pkey) =
 
     new N4: nonce;
     new userRegReq: userReg;
-    out (c, (encrypt((N4, encrypt((req(userRegReq, UserRegData)), pkA)), pkCC)));
+    out (c, (encrypt((N4, encrypt((req(UserRegData)), pkA)), pkCC)));
 
     in (c, (encM6: bitstring));
     let (=N4, resp: bitstring) = decrypt(encM6, skDApp) in
