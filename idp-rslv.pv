@@ -53,6 +53,14 @@ free IdpList: bitstring [private].
 
 free IdpAlive: host [private].
 
+event endLoginReq(host, host, nonce).
+event beginLoginReq(host, host, nonce).
+
+event beginServReqVal(host, host, nonce).
+event endServReqVal(host, host, nonce).
+
+query user: host, sp1: host, nonce: nonce; event(endLoginReq(user, sp1, nonce)) ==> event(beginLoginReq(user, sp1, nonce)).
+query user: host, sp1: host, nonce: nonce; event(endServReqVal(user, sp1, nonce)) ==> event(beginServReqVal(user, sp1, nonce)).
 
 (* Secrecy query *)
 query attacker(IdpAlive);
@@ -84,6 +92,7 @@ let processU(skU: skey, pkSp1: pkey, pkIdp2: pkey) =
                 encrypt((N1, servAccReq), pkSp1)
             )
         );
+    event beginLoginReq(U, xSp1, N1);
 
     
     in (c, (encM2: bitstring));
@@ -117,6 +126,7 @@ let processU(skU: skey, pkSp1: pkey, pkIdp2: pkey) =
 
     in (c, (encM20: bitstring));
     let (=N1, =reqServ) = decrypt(encM20, skU) in
+    event endServReqVal(U, xSp1, N1);
 
     0.
 
@@ -155,12 +165,13 @@ let processSp1(skSp1: skey, pkU: pkey, pkDApp: pkey) =
     in (c, (enc19: bitstring));
 
     let (=xN1, =samlResp) = decrypt(enc19, skSp1) in
-
+    event beginServReqVal(xU, Sp1, xN1);
     out (c,  
             (
                 encrypt((xN1, reqServ), pkU)
             )
         );
+    event endLoginReq(xU, Sp1, xN1);
 
     0.
 
