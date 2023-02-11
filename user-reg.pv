@@ -31,7 +31,8 @@ free A, Idp1, DApp, CC: host.
 
 (* Secret declaration *)
 free username, password : bitstring [private].
-free UserRegPage, UserRegData: bitstring [private].
+free UserRegPage: bitstring [private].
+free UserRegData: userReg [private].
 
 
 (* Secrecy query *)
@@ -45,7 +46,7 @@ let processA(skA: skey, pkIdp1: pkey) =
 
     in (c, 
             (
-                xIdp1: host, 
+                xIdp1: host
             )
         );
 	if (xIdp1 = Idp1) then
@@ -110,8 +111,8 @@ let processIdp1(skIdp1: skey, pkA: pkey, pkDApp: pkey) =
     in (c, (encM7: bitstring));
     let (=N3, resp: bitstring) = decrypt(encM1, skIdp1) in
 
-    new resp: bitstring;
-    out (c, (encrypt((xN2, resp), pkA)));
+    new respA: bitstring;
+    out (c, (encrypt((xN2, respA), pkA)));
 
     0.
 
@@ -158,8 +159,8 @@ let processCC(skCC: skey, pkDApp: pkey) =
     in (c, (encM5: bitstring));
     let (xN4: nonce, encReqForA: bitstring) = decrypt(encM5, skCC) in
     
-    new resp: bitstring;
-    out (c, (encrypt(xN4, respMeaning), pkDApp));
+    new respMeaning: bitstring;
+    out (c, (encrypt((xN4, respMeaning), pkDApp)));
 
     0.
 

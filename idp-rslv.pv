@@ -167,14 +167,15 @@ let processSp1(skSp1: skey, pkU: pkey, pkDApp: pkey) =
 
 
 (* DApp process *)
-let processDApp(skDApp: skey, pkSp1: pkey, pkCC: pkey, pkA: pkey) = 
+let processDApp(skDApp: skey, pkSp1: pkey, pkCC: pkey, pkA: pkey, pkIdp2: pkey) = 
     in (c, 
             (
                 xSp1: host, 
-                xCC: host
+                xCC: host,
+                xIdp1: host
             )
         );
-	if (xSp1 = Sp1) && (xCC = CC) then
+	if (xSp1 = Sp1) && (xCC = CC) && (xIdp1 = Idp1) then
 	let pkDApp = pk(skDApp) in
 
     in (c, (encM4: bitstring));
@@ -182,7 +183,7 @@ let processDApp(skDApp: skey, pkSp1: pkey, pkCC: pkey, pkA: pkey) =
 
 
     new N4: nonce;
-    new cidReqD: cidReq;
+    new cidReqD: cid;
     out (c, (encrypt((N4, encrypt((reqCid(cidReqD)), pkA)), pkCC)));
 
     in (c, (encM6: bitstring));
@@ -198,7 +199,7 @@ let processDApp(skDApp: skey, pkSp1: pkey, pkCC: pkey, pkA: pkey) =
     out (c, (encrypt((xN3, IdpAlive), pkSp1)));
 
     in (c, encM12: bitstring);
-    let (xN7: nonce, =username, xPass: bitstring) = decrypt(encM12, skDApp) in;
+    let (xN7: nonce, =username, xPass: bitstring) = decrypt(encM12, skDApp) in
     if (xPass = hash(password)) then
     
     new N8: nonce;
@@ -206,7 +207,7 @@ let processDApp(skDApp: skey, pkSp1: pkey, pkCC: pkey, pkA: pkey) =
 
 
     in (c, encM14: bitstring);
-    let (=N8, =encAtt) = decrypt(encM14, skDApp) in;
+    let (=N8, =encAtt) = decrypt(encM14, skDApp) in
 
     out (c, (encrypt((xN7, encAtt), pkIdp2)));
     0.
@@ -226,17 +227,17 @@ let processCC(skCC: skey, pkDApp: pkey) =
     in (c, (encM5: bitstring));
     let (xN4: nonce, encReqForA: bitstring) = decrypt(encM5, skCC) in
     
-    out (c, (encrypt(xN4, CID), pkDApp));
+    out (c, (encrypt((xN4, CID), pkDApp)));
 
     in (c, (encM7: bitstring));
     let (xN5: nonce, encReqForAQuery: bitstring) = decrypt(encM7, skCC) in
 
-    out (c, ((encrypt(xN5, IdpList), pkDApp)));
+    out (c, (encrypt((xN5, IdpList), pkDApp)));
 
     in (c, (encM13: bitstring));
     let (xN8: nonce, encLogReqForA: bitstring) = decrypt(encM13, skCC) in
 
-    out (c, ((encrypt(xN8, encAtt), pkDApp)));
+    out (c, (encrypt((xN8, encAtt), pkDApp)));
 
     0.
 
@@ -258,17 +259,17 @@ let processIdp2(skIdp2: skey, pkDApp: pkey, pkU: pkey) =
     if (xPass = hash(password)) then
     
     new N7: nonce;
-    out (c, (encrypt(N7, username, xPass), pkDApp));
+    out (c, (encrypt((N7, username, xPass), pkDApp)));
 
     in (c, (encM15: bitstring));
     let (=N7, =encAtt) = decrypt(encM15, skIdp2) in
 
-    out (c, (encrypt(xN6, decAtt), pkU));
+    out (c, (encrypt((xN6, decAtt), pkU)));
 
     in (c, (encM17: bitstring));
     let (xN9: nonce, =selectAtt) = decrypt(encM17, skIdp2) in
 
-    out (c, (encrypt(xN9, samlResp), pkU));
+    out (c, (encrypt((xN9, samlResp), pkU)));
 
     0.
 
@@ -283,7 +284,7 @@ process
         out(c, pkA);
     new skSp1: skey;
 	let pkSp1 = pk(skSp1) in
-        out(c, pkIdp1);
+        out(c, pkSp1);
     new skIdp2: skey;
 	let pkIdp2 = pk(skIdp2) in
         out(c, pkIdp2);
@@ -297,14 +298,11 @@ process
           (* Launch an unbounded number of sessions of the data owner *)
           (!processU(skU, pkSp1, pkIdp2)) | 
           
-          (* Launch an unbounded number of sessions of the data requester *)
-          (!processIdp1(skSp1, pkU, pkDApp)) |
-          
           (* Launch an unbounded number of sessions of the IPFS node *)
-          (!processDApp(skDApp, pkSp1, pkCC, pkA)) |
+          (!processDApp(skDApp, pkSp1, pkCC, pkA, pkIdp2)) |
           
           (* Launch an unbounded number of sessions of the DApp node without IPFS *)
 	      (!processCC(skCC, pkDApp)) |
 
-          (!processIdp2(skIdp2, pkDApp, pkU)) |
+          (!processIdp2(skIdp2, pkDApp, pkU))
     )
