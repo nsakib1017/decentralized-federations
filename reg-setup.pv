@@ -35,6 +35,21 @@ free username, password : bitstring [private].
 free IdpRegPage: bitstring [private].
 free IdpRegData: idpReg [private].
 
+event beginRegPageReq(host, host, nonce).
+event endRegPageReq(host, host, nonce).
+
+event beginIdpReg(host, host, nonce).
+event endIdpReg(host, host, nonce).
+
+event beginSndIdpReg(host, host, nonce).
+event endSndIdpReg(host, host, nonce).
+
+query admin: host, idp1: host, nonce: nonce; event(endRegPageReq(admin, idp1, nonce)) ==> event(beginRegPageReq(admin, idp1, nonce)).
+query admin: host, idp1: host, nonce: nonce; event(endIdpReg(admin, idp1, nonce)) ==> event(beginIdpReg(admin, idp1, nonce)).
+
+query dapp: host, cc: host, nonce: nonce; event(endSndIdpReg(dapp, cc, nonce)) ==> event(beginSndIdpReg(dapp, cc, nonce)).
+
+
 
 (* Secrecy query *)
 query attacker(username);
@@ -54,6 +69,8 @@ let processA(skA: skey, pkIdp1: pkey) =
 	let pkA = pk(skA) in
 
     new N1: nonce;
+    event beginRegPageReq(A, xIdp1, N1);
+
     out (c,  
             (
                 encrypt((N1, username, password), pkIdp1)
@@ -83,6 +100,7 @@ let processA(skA: skey, pkIdp1: pkey) =
             )
         );
     let (=N2, resp: bitstring) = decrypt(encM8, skA) in
+    event endIdpReg(A, xIdp1, N2);
     0.
 
 
@@ -102,9 +120,12 @@ let processIdp1(skIdp1: skey, pkA: pkey, pkDApp: pkey) =
     in (c, (encM1: bitstring));
     let (xN1: nonce, =username, =password) = decrypt(encM1, skIdp1) in
     out (c, (encrypt((xN1, IdpRegPage), pkA)));
+    event endRegPageReq(xA, Idp1, xN1);
+
 
     in (c, (encM3: bitstring));
     let (xN2: nonce, =IdpRegData, =Idp1) = decrypt(encM3, skIdp1) in
+    event beginIdpReg(xA, Idp1, xN2);
 
     new N3: nonce;
     out (c, (encrypt((N3, IdpRegData, Idp1), pkDApp)));
@@ -141,7 +162,8 @@ let processDApp(pkIdp1: pkey, skDApp: skey, pkCC: pkey, pkA: pkey) =
 
     in (c, (encM6: bitstring));
     let (=N4, resp: bitstring) = decrypt(encM6, skDApp) in
-
+    
+    event beginSndIdpReg(DApp, xCC, N4);
     new respMeaning: bitstring;
     out (c, (encrypt((xN3, respMeaning), pkIdp1)));
     0.
@@ -160,6 +182,7 @@ let processCC(skCC: skey, pkDApp: pkey) =
 
     in (c, (encM5: bitstring));
     let (xN4: nonce, encReqForA: bitstring) = decrypt(encM5, skCC) in
+    event beginSndIdpReg(xDApp, CC, xN4);
     
     new respMeaning: bitstring;
     out (c, (encrypt((xN4, respMeaning), pkDApp)));
