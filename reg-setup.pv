@@ -53,7 +53,9 @@ query dapp: host, cc: host, nonce: nonce; event(endSndIdpReg(dapp, cc, nonce)) =
 
 (* Secrecy query *)
 query attacker(username);
-      attacker(password).
+      attacker(password);
+      attacker(IdpRegPage);
+      attacker(IdpRegData).
 
 
 
@@ -163,7 +165,7 @@ let processDApp(pkIdp1: pkey, skDApp: skey, pkCC: pkey, pkA: pkey) =
     in (c, (encM6: bitstring));
     let (=N4, resp: bitstring) = decrypt(encM6, skDApp) in
     
-    event beginSndIdpReg(DApp, xCC, N4);
+    event endSndIdpReg(DApp, xCC, N4);
     new respMeaning: bitstring;
     out (c, (encrypt((xN3, respMeaning), pkIdp1)));
     0.
