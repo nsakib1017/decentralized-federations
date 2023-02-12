@@ -51,7 +51,7 @@ query dapp: host, cc: host, nonce: nonce; event(endSndUsrReg(dapp, cc, nonce)) =
 
 (* Secrecy query *)
 query attacker(username);
-      attacker(username);
+      attacker(password);
       attacker(UserRegData);
       attacker(UserRegPage).
       
